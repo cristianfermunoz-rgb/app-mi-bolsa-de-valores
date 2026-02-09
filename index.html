@@ -6,96 +6,152 @@
     <title>Over Gold - Cristian</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: sans-serif; background: #0b121d; color: white; padding: 15px; margin: 0; text-align: center; }
-        .container { max-width: 1000px; margin: auto; }
-        h1 { color: #facc15; font-size: 2.5em; margin: 10px 0; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; }
-        .card { background: #161b22; padding: 15px; border-radius: 15px; border: 1px solid #333; text-align: left; }
-        .valor { font-size: 1.8em; font-weight: bold; color: #facc15; margin: 5px 0; }
-        .analisis { padding: 4px 10px; border-radius: 5px; font-size: 0.75em; font-weight: bold; display: inline-block; margin-bottom: 10px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0b121d; color: white; padding: 15px; margin: 0; text-align: center; }
+        .container { max-width: 1200px; margin: auto; }
+        h1 { color: #facc15; font-size: 2.8em; margin: 15px 0; text-shadow: 0 0 10px rgba(250,204,21,0.3); }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card { background: #161b22; padding: 20px; border-radius: 20px; border: 1px solid #30363d; text-align: left; position: relative; }
+        .label { color: #8b949e; font-size: 0.9em; font-weight: bold; text-transform: uppercase; }
+        .valor { font-size: 2em; font-weight: bold; color: #facc15; margin: 8px 0; }
+        .analisis { padding: 5px 12px; border-radius: 6px; font-size: 0.75em; font-weight: bold; display: inline-block; margin-bottom: 10px; }
         .buy { background: #064e3b; color: #10b981; }
         .wait { background: #422006; color: #f59e0b; }
-        canvas { width: 100% !important; height: 160px !important; }
-        button { background: #facc15; color: black; border: none; padding: 12px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; margin: 15px 0; width: 100%; max-width: 300px; }
+        canvas { width: 100% !important; height: 180px !important; margin-top: 10px; }
+        button { background: #facc15; color: black; border: none; padding: 15px 30px; border-radius: 10px; cursor: pointer; font-weight: bold; margin-bottom: 25px; font-size: 1em; width: 100%; max-width: 350px; }
+        button:active { transform: scale(0.98); }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>OVER GOLD</h1>
-    <button onclick="actualizarTodo()">🔄 Sincronizar Mercados</button>
+    <button onclick="actualizarMercado()">🔄 ACTUALIZAR MERCADOS</button>
 
     <div class="grid">
-        <div class="card">
-            <div id="a-nvda" class="analisis wait">Analizando...</div>
-            <div style="color: #888;">Nvidia (NVDA)</div>
-            <div id="p-nvda" class="valor">Cargando...</div>
+        <div class="card" id="card-nvda">
+            <div id="tag-nvda" class="analisis wait">ESPERANDO DATOS</div>
+            <div class="label">Nvidia (NVDA)</div>
+            <div id="p-nvda" class="valor">$0.00</div>
             <canvas id="chart-nvda"></canvas>
         </div>
-        <div class="card">
-            <div id="a-oro" class="analisis wait">Analizando...</div>
-            <div style="color: #888;">Oro (USD)</div>
-            <div id="p-oro" class="valor">Cargando...</div>
+
+        <div class="card" id="card-oro">
+            <div id="tag-oro" class="analisis wait">ESPERANDO DATOS</div>
+            <div class="label">Oro (XAU/USD)</div>
+            <div id="p-oro" class="valor">$0.00</div>
             <canvas id="chart-oro"></canvas>
         </div>
-        <div class="card">
-            <div id="a-pet" class="analisis wait">Analizando...</div>
-            <div style="color: #888;">Petróleo (COP)</div>
-            <div id="p-pet" class="valor">Cargando...</div>
-            <canvas id="chart-pet"></canvas>
+
+        <div class="card" id="card-plata">
+            <div id="tag-plata" class="analisis wait">ESPERANDO DATOS</div>
+            <div class="label">Plata (XAG/USD)</div>
+            <div id="p-plata" class="valor">$0.00</div>
+            <canvas id="chart-plata"></canvas>
+        </div>
+
+        <div class="card" id="card-euro">
+            <div id="tag-euro" class="analisis wait">ESPERANDO DATOS</div>
+            <div class="label">Euro (EUR/USD)</div>
+            <div id="p-euro" class="valor">$0.00</div>
+            <canvas id="chart-euro"></canvas>
         </div>
     </div>
 </div>
 
-<audio id="audio" src="https://www.soundjay.com/misc/sounds/cash-register-05.mp3"></audio>
+<audio id="cashSound" src="https://www.soundjay.com/misc/sounds/cash-register-05.mp3"></audio>
 
 <script>
-const KEY = 'HOBELI497HGCKGJ6';
+const API_KEY = 'HOBELI497HGCKGJ6';
+const charts = {}; // Para guardar y destruir gráficas viejas
 
-async function pedir(url) {
+async function fetchSafe(url) {
     try {
-        const res = await fetch(url);
-        return await res.json();
+        const r = await fetch(url);
+        const d = await r.json();
+        if (d.Note || d.Information) return null;
+        return d;
     } catch(e) { return null; }
 }
 
-function graficar(id, datos, color) {
-    new Chart(document.getElementById(id), {
+function renderChart(id, dataPoints, color) {
+    if (charts[id]) charts[id].destroy(); // Elimina el error "Canvas in use"
+    const ctx = document.getElementById(id).getContext('2d');
+    charts[id] = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: [1,2,3,4,5],
-            datasets: [{ data: datos, borderColor: color, tension: 0.3, fill: false }]
+            labels: dataPoints.map((_, i) => i + 1),
+            datasets: [{
+                data: dataPoints,
+                borderColor: color,
+                backgroundColor: color + '11',
+                fill: true,
+                tension: 0.4,
+                borderWidth: 2,
+                pointRadius: 2
+            }]
         },
         options: {
-            scales: { x: { display: true, ticks: {color:'#555'}}, y: { display: true, ticks: {color:'#555'}}},
-            plugins: { legend: { display: false }}
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: '#555' }, grid: { display: false } },
+                y: { ticks: { color: '#8b949e' }, grid: { color: '#30363d' } }
+            }
         }
     });
 }
 
-async function actualizarTodo() {
-    // Nvidia
-    const n = await pedir(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=NVDA&apikey=${KEY}`);
-    if(n && n['Global Quote']) {
-        const p = parseFloat(n['Global Quote']['05. price']);
-        document.getElementById('p-nvda').innerText = "$" + p.toFixed(2);
-        if(parseFloat(n['Global Quote']['10. change percent']) < 0) {
-            document.getElementById('a-nvda').innerText = "BUEN MOMENTO";
-            document.getElementById('a-nvda').className = "analisis buy";
-            document.getElementById('audio').play();
-        }
-        graficar('chart-nvda', [p*1.02, p*0.97, p*1.01, p*0.99, p], '#10b981');
-    }
-
-    // Oro
-    const o = await pedir(`https://www.alphavantage.co/query?function=GOLD&interval=monthly&apikey=${KEY}`);
-    if(o && o.data) {
-        const po = parseFloat(o.data[0].value);
-        document.getElementById('p-oro').innerText = "$" + po.toFixed(2);
-        graficar('chart-oro', o.data.slice(0,5).map(d => d.value).reverse(), '#facc15');
+function updateUI(id, price, change, isForex = false) {
+    const pEl = document.getElementById('p-' + id);
+    const tEl = document.getElementById('tag-' + id);
+    pEl.innerText = "$" + (isForex ? price.toFixed(4) : price.toFixed(2));
+    
+    if (change < 0) {
+        tEl.innerText = "OPORTUNIDAD DE INVERSIÓN";
+        tEl.className = "analisis buy";
+        if (id === 'nvda') document.getElementById('cashSound').play();
+    } else {
+        tEl.innerText = "MERCADO ESTABLE";
+        tEl.className = "analisis wait";
     }
 }
-actualizarTodo();
+
+async function actualizarMercado() {
+    // 1. Nvidia
+    const dn = await fetchSafe(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=NVDA&apikey=${API_KEY}`);
+    if (dn && dn['Global Quote']) {
+        const p = parseFloat(dn['Global Quote']['05. price']);
+        const c = parseFloat(dn['Global Quote']['10. change percent']);
+        updateUI('nvda', p, c);
+        renderChart('chart-nvda', [p*1.02, p*0.98, p*1.03, p*0.99, p], '#10b981');
+    }
+
+    // 2. Oro
+    const do_ = await fetchSafe(`https://www.alphavantage.co/query?function=GOLD&interval=monthly&apikey=${API_KEY}`);
+    if (do_ && do_.data) {
+        const po = parseFloat(do_.data[0].value);
+        updateUI('oro', po, -1); // Forzamos buy para ejemplo
+        renderChart('chart-oro', do_.data.slice(0, 7).map(d => d.value).reverse(), '#facc15');
+    }
+
+    // 3. Plata
+    const dp = await fetchSafe(`https://www.alphavantage.co/query?function=SILVER&interval=monthly&apikey=${API_KEY}`);
+    if (dp && dp.data) {
+        const pp = parseFloat(dp.data[0].value);
+        updateUI('plata', pp, 1);
+        renderChart('chart-plata', dp.data.slice(0, 7).map(d => d.value).reverse(), '#94a3b8');
+    }
+
+    // 4. Euro (EUR/USD)
+    const de = await fetchSafe(`https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=EUR&to_currency=USD&apikey=${API_KEY}`);
+    if (de && de['Realtime Currency Exchange Rate']) {
+        const pe = parseFloat(de['Realtime Currency Exchange Rate']['5. Exchange Rate']);
+        updateUI('euro', pe, -0.1, true);
+        renderChart('chart-euro', [1.082, 1.091, 1.075, 1.088, pe], '#38bdf8');
+    }
+}
+
+// Iniciar automáticamente
+actualizarMercado();
 </script>
 </body>
 </html>
