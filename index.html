@@ -17,9 +17,15 @@
         .card { background: var(--card-bg); padding: 20px; border-radius: 20px; border: 1px solid #30363d; text-align: left; }
         .label { color: #8b949e; font-size: 0.9em; font-weight: bold; text-transform: uppercase; }
         .valor { font-size: 2.2em; font-weight: bold; color: var(--gold); margin: 8px 0; }
+        
+        /* Carteles de análisis */
+        .analisis { padding: 5px 12px; border-radius: 6px; font-size: 0.75em; font-weight: bold; display: inline-block; margin-bottom: 10px; }
+        .buy { background: #064e3b; color: #10b981; } 
+        .wait { background: #422006; color: #f59e0b; }
+
         canvas { width: 100% !important; height: 180px !important; margin-top: 10px; }
 
-        /* Noticia Destacada Oro */
+        /* Noticia Destacada */
         .featured-news { background: linear-gradient(90deg, #1e293b, #0f172a); border-radius: 20px; margin: 30px 0; padding: 0; overflow: hidden; display: flex; flex-wrap: wrap; border: 1px solid var(--gold); text-align: left; }
         .featured-img { flex: 1; min-width: 300px; height: 250px; background: url('https://images.unsplash.com/photo-1610375461246-83dfafed3393?auto=format&fit=crop&q=80&w=800') center/cover; }
         .featured-text { flex: 2; padding: 30px; min-width: 300px; }
@@ -44,38 +50,44 @@
         <div class="featured-img"></div>
         <div class="featured-text">
             <span class="featured-tag">NOTICIA DE IMPACTO</span>
-            <h2 style="color: white; margin-top: 0;">El Oro rompe barreras: ¿Refugio seguro ante la incertidumbre global?</h2>
-            <p style="color: #cbd5e1; line-height: 1.6;">El metal precioso ha alcanzado niveles históricos en 2026. Analistas sugieren que el rally del oro apenas comienza, consolidándose como el activo número uno para proteger el patrimonio.</p>
+            <h2 style="color: white; margin-top: 0;">El Oro rompe barreras: ¿Refugio seguro?</h2>
+            <p style="color: #cbd5e1; line-height: 1.6;">Analistas sugieren que el rally del oro apenas comienza, consolidándose como el activo número uno para proteger el patrimonio en este 2026.</p>
         </div>
     </div>
 
     <div class="grid">
         <div class="card">
+            <div id="tag-nvda" class="analisis wait">ANALIZANDO...</div>
             <div class="label">Nvidia (NVDA)</div>
             <div id="p-nvda" class="valor">Cargando...</div>
             <canvas id="chart-nvda"></canvas>
         </div>
         <div class="card">
+            <div id="tag-oro" class="analisis wait">ANALIZANDO...</div>
             <div class="label">Oro (XAU/USD)</div>
             <div id="p-oro" class="valor">Cargando...</div>
             <canvas id="chart-oro"></canvas>
         </div>
         <div class="card">
+            <div id="tag-plata" class="analisis wait">ANALIZANDO...</div>
             <div class="label">Plata (XAG/USD)</div>
             <div id="p-plata" class="valor">Cargando...</div>
             <canvas id="chart-plata"></canvas>
         </div>
         <div class="card">
+            <div class="analisis wait">MERCADO ESTABLE</div>
             <div class="label">Euro (EUR/COP)</div>
-            <div id="p-euro" class="valor">$4,300</div>
+            <div class="valor">$4,300</div>
             <canvas id="chart-euro"></canvas>
         </div>
-        <div class="card" id="card-dolar">
-            <div class="label">Dólar (USD/COP)</div>
+        <div class="card">
+            <div class="analisis buy">COMPRA: OPORTUNIDAD</div>
+            <div class="label">Dólar (USD/COP) f. Petróleo</div>
             <div class="valor">$3,600</div>
             <canvas id="chart-dolar"></canvas>
         </div>
         <div class="card">
+            <div id="tag-pet" class="analisis wait">ANALIZANDO...</div>
             <div class="label">Petróleo (WTI en COP)</div>
             <div id="p-pet" class="valor">Cargando...</div>
             <canvas id="chart-pet"></canvas>
@@ -89,13 +101,12 @@
 </div>
 
 <script>
-const API_KEY = 'HOBELI497HGCKGJ6';
-const BASE_DOLAR = 3600;
-const BASE_EURO = 4300;
+const API_KEY = 'HOBELI497HGCKGJ6'; // Tu llave de Nvidia
+const BASE_DOLAR = 3600; // Tu precio solicitado
 const charts = {};
 
 function mostrarReflexion() {
-    const frases = ["El riesgo viene de no saber lo que haces.", "El mercado es un dispositivo para transferir dinero del impaciente al paciente.", "Precio es lo que pagas, valor es lo que recibes."];
+    const frases = ["El riesgo viene de no saber lo que haces.", "La paciencia es el activo más rentable.", "Precio es lo que pagas, valor es lo que recibes."];
     document.getElementById('reflexion').innerText = `"${frases[Math.floor(Math.random()*frases.length)]}"`;
 }
 
@@ -109,32 +120,60 @@ function renderChart(id, data, color) {
     });
 }
 
+function aplicarAnalisis(id, cambio) {
+    const el = document.getElementById('tag-' + id);
+    if (!el) return;
+    if(cambio < 0) {
+        el.innerText = "COMPRA: OPORTUNIDAD";
+        el.className = "analisis buy";
+    } else {
+        el.innerText = "MERCADO ESTABLE";
+        el.className = "analisis wait";
+    }
+}
+
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
 async function actualizarTodo() {
     mostrarReflexion();
     
-    // Graficas Manuales Inmediatas
+    // Carga de gráficas manuales de inmediato
     renderChart('chart-euro', [4280, 4310, 4290, 4320, 4300], '#38bdf8');
     renderChart('chart-dolar', [3580, 3610, 3590, 3620, 3600], '#10b981');
 
-    // Nvidia
+    // 1. Nvidia (Usa tu llave)
     try {
         const rN = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=NVDA&apikey=${API_KEY}`).then(res => res.json());
         if(rN['Global Quote']) {
             const p = parseFloat(rN['Global Quote']['05. price']);
+            const c = parseFloat(rN['Global Quote']['10. change percent']);
             document.getElementById('p-nvda').innerText = "$" + p.toFixed(2);
-            renderChart('chart-nvda', [p*0.98, p*1.02, p*0.99, p*1.01, p], '#10b981');
+            aplicarAnalisis('nvda', c);
+            renderChart('chart-nvda', [p*0.97, p*1.01, p*0.98, p*1.03, p], '#10b981');
         }
     } catch(e) {}
 
     await delay(1200);
 
-    // Noticias
+    // 2. Oro
+    try {
+        const rO = await fetch(`https://www.alphavantage.co/query?function=GOLD&interval=monthly&apikey=${API_KEY}`).then(res => res.json());
+        if(rO.data) {
+            const pO = parseFloat(rO.data[0].value);
+            const pAnt = parseFloat(rO.data[1].value);
+            document.getElementById('p-oro').innerText = "$" + pO.toFixed(2);
+            aplicarAnalisis('oro', pO - pAnt);
+            renderChart('chart-oro', rO.data.slice(0, 5).map(d => d.value).reverse(), '#facc15');
+        }
+    } catch(e) {}
+
+    await delay(1200);
+
+    // 3. Noticias
     try {
         const rNews = await fetch(`https://www.alphavantage.co/query?function=NEWS_SENTIMENT&apikey=${API_KEY}`).then(res => res.json());
         if(rNews.feed) {
-            document.getElementById('noticias-lista').innerHTML = rNews.feed.slice(0, 4).map(n => `
+            document.getElementById('noticias-lista').innerHTML = rNews.feed.slice(0, 5).map(n => `
                 <div class="news-item"><a href="${n.url}" target="_blank" class="news-title">${n.title}</a></div>
             `).join('');
         }
@@ -142,18 +181,15 @@ async function actualizarTodo() {
 
     await delay(1200);
 
-    // Oro y Plata
+    // 4. Plata y Petróleo
     try {
-        const rO = await fetch(`https://www.alphavantage.co/query?function=GOLD&interval=monthly&apikey=${API_KEY}`).then(res => res.json());
-        if(rO.data) {
-            const pO = parseFloat(rO.data[0].value);
-            document.getElementById('p-oro').innerText = "$" + pO.toFixed(2);
-            renderChart('chart-oro', rO.data.slice(0, 5).map(d => d.value).reverse(), '#facc15');
+        const rPl = await fetch(`https://www.alphavantage.co/query?function=SILVER&interval=monthly&apikey=${API_KEY}`).then(res => res.json());
+        if(rPl.data) {
+            const pPl = parseFloat(rPl.data[0].value);
+            document.getElementById('p-plata').innerText = "$" + pPl.toFixed(2);
+            renderChart('chart-plata', rPl.data.slice(0, 5).map(d => d.value).reverse(), '#94a3b8');
         }
-    } catch(e) {}
 
-    // Petroleo con base 3600
-    try {
         const rP = await fetch(`https://www.alphavantage.co/query?function=WTI&interval=monthly&apikey=${API_KEY}`).then(res => res.json());
         if(rP.data) {
             const pP = parseFloat(rP.data[0].value) * BASE_DOLAR;
